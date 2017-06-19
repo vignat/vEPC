@@ -1,0 +1,16 @@
+# Configuration file for LTE-CNE
+
+#####  NOTE: Please Do NOT change the order of the parameters #####
+
+# EGTP related
+QOSM_EG_C_DFLT_PORT              2123                     # EGTP port
+QOSM_EG_C_S11_PORT               2124                     # EGTP port
+QOSM_EG_C_S5S8_PORT              2125                     # EGTP port
+QOSM_EG_C_S4_PORT                2126                     # EGTP port
+QOSM_EG_U_DFLT_PORT              2152               # SGW port
+QOSM_EG_DFLT_HOST_NAME           "ccin.ccpu.com"    # EGTP host name
+QOSM_SGW_IPADDR                  "172.27.2.44"        # SGW IP address
+QOSM_UE_NUM                      10
+QOSM_SGW_DBG_MASK                1111
+QOSM_SM_DBG_MASK                 1111
+

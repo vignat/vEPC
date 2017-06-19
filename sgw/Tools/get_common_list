@@ -1,0 +1,785 @@
+##!/bin/perl
+#!perl 
+#/*
+# * Copyright 2017-present Open Networking Laboratory
+# *
+# * Licensed under the Apache License, Version 2.0 (the "License");
+# * you may not use this file except in compliance with the License.
+# * You may obtain a copy of the License at
+# *
+# *     http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * Unless required by applicable law or agreed to in writing, software
+# * distributed under the License is distributed on an "AS IS" BASIS,
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
+# */
+
+$main::help_msg = <<ENDUSE;
+
+Provide the list of latest revisions of all common files for the group of products. 
+A "common.out" file can be created by customer request to store information about
+all common files and their revisions.
+
+Usage1: get_common_list -d  product_dir [ product_dir ... ]
+Usage2: get_common_list -f  prefix product_dir [ prefix product_dir ... ]
+Usage3: get_common_list [ -h ]
+
+Usage1 is used by customers. This usage is specific to a customer directory structure
+    (CD directory structure)
+Usage2 is used internally within Trillium. This usage is specific to the Trillium directory 
+    structure
+
+Option:
+
+    -d product_dir        -- Specify the directory structure that contains common files only             
+    -f prefix product_dir -- Specify the product prefix and the directory structure that 
+                             contains common and other files
+    -h                    -- Provide simple help 
+
+Example :
+  
+    % get_common_list -d  /Trillium/SCCP/common /Trillium/MTP3/common
+    
+    % get_common_list -f id /u/prd/rls/1000194/1.1/00/mnt mg 
+      /u/prd/rls/1000177/1.2/00/mnt in /u/prd/rls/1000009/3.10/120/mnt
+    
+    % get_common_list -d  /Trillium/SCCP/common /Trillium/MTP3/common > Out.txt
+ENDUSE
+
+$main::man_msg = <<ENDUSE;
+
+
+
+ENDUSE
+
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#
+# Function: parse_part
+#
+# Purpose:
+#	Find multiple blocks of common files
+#
+# Returns: <None>
+#
+# Globals used:
+#	<None>
+#
+#--------------------------------------------------------------------------
+
+sub parse_part
+{
+   my($current, $prod, $dir, $fH) = @_;
+
+   if ($current  =~ /Common Files/)
+   {
+      &get_all_common_files_in_the_block($prod_name, $product_dir, \*INPUT);
+   }
+}
+#----------------------------------------------------------------------------
+#
+# Function:
+#	get_all_common_files_in_dir
+#
+# Purpose:
+#	Find all common files inside a dirctory
+#
+# Returns: <None>
+#
+# Global used:
+#	<None>
+#
+#----------------------------------------------------------------------------
+sub get_all_common_files_in_dir
+{
+   my($dir) = @_;
+   if (!opendir (DIR,$dir))
+   {
+       print STDERR "Couldn't open directory $dir\n";
+       Exit_Clean();  
+   } 
+ 
+   while ($fn = readdir DIR)
+   {
+     #check file name
+     
+     if(($fn !~ /^\./) && ($fn !~ "common.out" ))
+     {       
+              
+       
+       $sidLine=`grep 'Sid' $dir/$fn`;
+       @tmp = split(/\s+/, $sidLine);
+
+
+       my($size,$mtime)=(stat("$fn"))[7,9];
+       
+       #in case clearcase 
+       if ($sidLine =~ /@@/)
+       {
+           $rev = $tmp[2];
+           $start=index($rev,'@@',0);
+           $rev=substr($rev,$start+3);
+       }
+       else
+       {
+           $rev = $tmp[3];
+       }    
+
+       # if entry already exists 
+       if ($fileSidA{$fn} ne "")
+       {
+           # if new value of SID is higher than already stored value, 
+           # replace it
+
+           # if it is in clearcase, we multiply 100 for it value
+           if ($rev =~/main/)
+           {
+               $_ = substr($rev,5)*100; 
+               #case like main/76_1
+               if ($rev =~ _)
+               {
+                   $rev =~ m/_/g;
+                   $PosFind = pos($rev);
+                   $_ = $_ + substr($rev,$PosFind);
+               }               
+           }
+           else
+           {
+               $_ = $rev;
+	   }	  
+                              
+           s/\.//g;
+           $newRev1=$_;
+             
+           
+           $_ = $fileSidA{$fn};
+           s/\.//g;
+           $oldRev2=$_;
+           if ($newRev1 > $oldRev2 )
+           {
+               $oldPath= 0;                           
+              #case no sid, same name                     
+              if($filePatch{$fn} == 2) 
+              { 
+		   
+                   $moldtime=$filemTime{$fn};
+                   $oldDir= $ProdDir{$fn};
+                   $oldPro= $fileProdA{$fn};
+                   $oldPath= 2;
+              }
+              $fileSidA{$fn} = $newRev1;
+              $fileProdA{$fn} = $prod;
+              $ProdDir{$fn} = "$dir/$fn";
+              $filemTime{$fn} = $mtime;
+              $filePatch{$fn} = 0;
+              
+              if($oldPath == 2) 
+              { 
+	           $fn=sprintf("%s_%d",$fn,$main::RepCount);
+                   $fileSidA{$fn} = $oldRev2;
+                   $fileProdA{$fn} = $oldPro;
+                   $ProdDir{$fn} = $oldDir;
+                   $filemTime{$fn} = $moldtime;
+                   $filePatch{$fn} = 2;
+	           $main::RepCount++;                 
+              } 
+            
+              
+           }
+           #In case of same verion
+           elsif ($newRev1 == $oldRev2 && $filePatch{$fn} != 2)
+           {
+	      #In case of diffenent
+              if ($rtc=compare("$dir/$fn",$ProdDir{$fn}))
+              { 
+                 $filePatch{$fn} = 1; 
+                 $fnold=$fn; 
+		 $fn=sprintf("%s_%d",$fn,$main::RepCount);
+                 $fileSidA{$fn} = $newRev1;
+                 $fileProdA{$fn} = $prod;
+                 $ProdDir{$fn} = "$dir/$fnold";
+                 $filemTime{$fn} = $mtime;
+                 $filePatch{$fn} = 1;
+		 $main::RepCount++;            
+              }                  
+           }
+           elsif ($newRev1 <= $oldRev2 && $newRev1 <= 0)
+           {
+	      #In case of diffenent
+              if ($rtc=compare("$dir/$fn",$ProdDir{$fn}))
+              { 
+                 $fnold=$fn; 
+		 $fn=sprintf("%s_%d",$fn,$main::RepCount);
+                 $fileSidA{$fn} = $newRev1;
+                 $fileProdA{$fn} = $prod;
+                 $ProdDir{$fn} = "$dir/$fnold";
+                 $filemTime{$fn} = $mtime;
+                 $filePatch{$fn} = 2;
+		 $main::RepCount++; 
+                 $rev = "N/A";           
+              }                  
+           }
+           
+          
+
+           # found a file common to multiple products - 
+           # increment the global count
+         }
+         else # if its a new entry
+         {
+             # if it is in clearcase, we multiply 100 for it value
+             if ($rev =~/main/)
+             {
+                 $_ = substr($rev,5)*100;
+                 #case like main/76_1
+                 if ($rev =~ _)
+                 {
+                    $rev =~ m/_/g;
+                    $PosFind = pos($rev);
+                    $_ = $_ + substr($rev,$PosFind);
+                 }                   
+             }
+             elsif($rev =~ m/^\d/)
+             {
+                 $_ = $rev;
+	     }              
+             else
+             {
+                 $_ = "N/A";
+                 $rev = "N/A";
+             }
+             $fileSidA{$fn} = $_;
+             $fileProdA{$fn} = $prod;
+             $ProdDir{$fn} = "$dir/$fn";
+             $filemTime{$fn} = $mtime;
+             $filePatch{$fn} = 0;
+             #in case no SID
+             if ($fileSidA{$fn} eq "N/A")
+             {
+                 $filePatch{$fn} = 2;  
+             } 
+ 
+         }
+            
+        $finCmFiles{$fn}++;            
+        if (!$main::outflag && !$main::comoutflag)
+        {      
+            print OUT "$dir/$fn\t$rev\n";
+	}        
+     }
+   }
+   close DIR;
+}
+
+#----------------------------------------------------------------------------
+#
+# Function:
+#	get_all_common_files_in_the_block
+#
+# Purpose:
+#	Find all common files inside the block
+#
+# Returns: <None>
+#
+# Global used:
+#	<None>
+#
+#----------------------------------------------------------------------------
+
+sub get_all_common_files_in_the_block
+{
+   my($prod, $dir, $fH) = @_;
+
+   while (<$fH>)
+   {
+      if ($_ =~ /^part/)
+      {
+          &parse_part($_, $prod, $dir, \*$fH);
+	  return;
+      }
+      else
+      {
+         @array = split;
+         my($fn) = $array[1];
+
+
+         if ($array[0] eq "file")
+         {
+            $sidLine=`grep 'Sid' $dir/$fn`;
+            @tmp = split(/\s+/, $sidLine);
+       
+            my($size,$mtime)=(stat("$dir/$fn"))[7,9];            
+ 
+            #in case clearcase 
+            if ($sidLine =~ /@@/)
+            {
+            	$rev = $tmp[2];
+            	$start=index($rev,'@@',0);
+            	$rev=substr($rev,$start+3);              
+            }
+            else
+            {
+                $rev = $tmp[3];
+            }
+            
+
+            # if entry already exists 
+            if ($fileSidA{$fn} ne "")
+            {
+               # if new value of SID is higher than already stored value, 
+               # replace it
+
+               # if it is in clearcase, we multiply 100 for it value
+               if ($rev =~/main/)
+               {
+                   $_ = substr($rev,5)*100;
+                   #case like main/76_1
+                   if ($rev =~ _)
+                   {
+                      $rev =~ m/_/g;
+                      $PosFind = pos($rev);
+                      $_ = $_ + substr($rev,$PosFind);
+                   }
+               }
+               else
+               {
+                   $_ = $rev;
+	       }
+                              
+               s/\.//g;
+               $newRev1=$_;
+
+               $_ = $fileSidA{$fn};
+               s/\.//g;
+               $oldRev2=$_;
+               if ($newRev1 > $oldRev2)
+               {
+                  $fileSidA{$fn} = $newRev1;
+                  $fileProdA{$fn} = $prod;
+                  $ProdDir{$fn} = "$dir/$fn";
+                  $filemTime{$fn} = $mtime;
+                  $filePatch{$fn} = 0;
+               }
+                #In case of same verion
+              elsif ($newRev1 == $oldRev2)
+              {
+	         #In case of diffenent
+                 if ($rtc=compare("$dir/$fn",$ProdDir{$fn}))
+                 { 
+                   $filePatch{$fn} = 1; 
+                   $fnold=$fn; 
+		   $fn=sprintf("%s_%d",$fn,$main::RepCount);
+                   $fileSidA{$fn} = $newRev1;
+                   $fileProdA{$fn} = $prod;
+                   $ProdDir{$fn} = "$dir/$fnold";
+                   $filemTime{$fn} = $mtime;
+                   $filePatch{$fn} = 1;
+		   $main::RepCount++;            
+                 } 
+               }
+               # found a file common to multiple products - 
+               # increment the global count
+            }
+            else # if its a new entry
+            {
+               # if it is in clearcase, we multiply 100 for it value
+               if ($rev =~/main/)
+               {
+                   $_ = substr($rev,5)*100;
+                   #case like main/76_1
+                   if ($rev =~ _)
+                   {
+                      $rev =~ m/_/g;
+                      $PosFind = pos($rev);
+                      $_ = $_ + substr($rev,$PosFind);
+                   }
+               }
+               else
+               {
+                   $_ = $rev;
+	       }
+               $fileSidA{$fn} = $_;
+               $fileProdA{$fn} = $prod;
+               $ProdDir{$fn} = "$dir/$fn";
+               $filemTime{$fn} = $mtime;
+               $filePatch{$fn} = 0;
+            }
+            
+            $finCmFiles{$fn}++; 
+            if (!$main::outflag && !$main::comoutflag)
+            {      
+               print OUT "$dir/$fn\t$prod\t$rev\n";
+	    }
+         }
+      }
+   }
+}
+sub Exit_Clean
+{
+   #Go back current directory
+   print STDERR "Exit!\n";
+   chdir ($main::Curdir);\
+   system ("rm -f $main::CommOut");
+#   system ("rm -f $main::OutFile");
+   exit(1);
+
+}
+#-----------------------------------------------------------------------------
+#
+# Function: main 
+#
+# Purpose: Print list of common files
+#
+#
+# Returns: <None>
+#
+# Globals used:
+#	$prod_name, $product_dir 
+#
+#-----------------------------------------------------------------------------
+
+# main starts here
+use Getopt::Long; 
+use File::Copy;
+use File::Compare;
+use Cwd;
+$main::help = '0';
+$main::man = '0'; 
+$main::file = '0';
+$main::dir = '0';
+
+$main::fileflag = 0;
+$main::dirflag = 0;
+$main::comoutflag = 0;
+
+$main::OutFile;
+$main::Curdir;
+$main::CommOut;
+
+
+$numArguments = $#ARGV + 1;
+
+# at least one argument is supplied? is the number of arguments are odd? 
+# print usage and exit  
+
+unless(GetOptions('help'     => \$main::help,
+                  #'man'      => \$main::man,
+                  'file'     => \$main::file,
+                  'dir'      => \$main::dir))
+{
+    print STDERR "error processing arguments\n";
+    print STDERR "$help_msg";
+    exit (1);
+}
+                  
+if ($main::help)
+{
+    print STDERR "$main::help_msg";
+    exit(0);
+}
+if ($main::man)
+{
+    print "$main::man_msg";
+    exit(0);
+}
+if ($main::file)
+{
+    $main::fileflag=1;
+}
+if ($main::dir)
+{
+    $main::dirflag=1;
+}
+if ((!$main::file) &&  (!$main::dirflag))
+{
+    print STDERR "\nUse \"-h\" for more options.\n";
+    exit(1);
+}
+
+if (($main::file) &&  ($main::dirflag))
+{
+    print STDERR "\Please use one of flowing option:\n";
+    print STDERR "-d product_dir [ product_dir ... ] or\n";
+    print STDERR "-f prefix product_dir [ prefix product_dir ... ]\n";
+    exit(1);
+}
+
+
+    if ($main::fileflag) 
+    {  
+	if (($numArguments < 3) || ($numArguments-1 & 0x01)  )
+	{
+	    print STDERR "\nError number of arguments\n";
+	    print STDERR "$help_msg";
+	    exit(1);
+	}
+    }
+    else
+    {
+	if (($numArguments < 2))
+	{
+	    print STDERR "\nerror number of arguments\n";
+	    print STDERR "$help_msg";
+	    exit(1);
+	}
+    }
+
+
+# Install the signal handler
+$SIG{INT} = 'Exit_Clean';
+$SIG{QUIT} = 'Exit_Clean';
+#Get current dirctory
+$main::Curdir=getcwd();
+
+  
+    print STDERR "Create an output file \"common.out\" to store the list of all common files?(y/n)";
+    chop($ans = <STDIN>);
+    if ($ans eq 'y' || $ans eq 'Y')
+    {
+        print STDERR "Enter directory where this file should be in:(\".\" for current directory)\n"; 
+        chop($TemDir = <STDIN>);
+        
+        $rt=chdir ($TemDir);
+        unless ($rt)
+        {
+              print STDERR "Directory\"$TemDir\" do not exist!\n";
+              Exit_Clean();                      
+        } 
+        #Go back current directory
+        chdir ($main::Curdir);
+
+        if ($TemDir eq "" || $TemDir eq ".")
+        {
+            $main::CommOut="common.out";
+        }   
+    
+        else
+        {
+            $main::CommOut=sprintf("%s/common.out",$TemDir);
+        }
+         
+    }
+    else
+    {
+          $main::comoutflag = 1;
+    }  
+   
+
+    # open the output file
+    if (!$main::comoutflag)
+    {
+      if (!open(OUT, "> $main::CommOut"))
+      {
+        print STDERR "Can not open output file $main::CommOut \n";
+        Exit_Clean(); 
+     }
+    }
+
+
+
+
+#change mode to rw for all
+chmod 0666,  $main::CommOut;
+
+#number of common files start from = 0 
+$finCmFiles = 0;
+$main::RepCount=0;
+
+#Compares with common file
+if ($main::fileflag)
+{
+  while ($prod_name = shift(@ARGV))
+  {
+    $product_dir = shift(@ARGV);
+
+    if (length($prod_name) != 2 )
+    {
+	print STDERR "Product prefix must be two letters!\n";
+        Exit_Clean();
+    }
+
+    # Open product_dir and look for product_name.cmd file
+    
+    if (!open(INPUT, "< $product_dir/$prod_name.cmd"))
+    {
+        print STDERR "Can not open file $product_dir/$prod_name.cmd.\n";
+        print STDERR "Please verify product directory or product prefix.\n";
+        Exit_Clean();
+    }
+
+    while (<INPUT>)
+    {
+      #if common files portion found
+      if ($_ =~ /^part/)
+      {
+         #Go back current directory
+         chdir ($main::Curdir);
+         &parse_part($_, $prod_name, $product_dir, \*INPUT);
+      }
+    }
+    close(INPUT);
+  }
+}
+#Compares with Directories
+else
+{
+  while ($prod_dir = shift(@ARGV))
+  {
+         
+      $rt=chdir ("$prod_dir");
+      
+      if (!$rt)
+      {
+        print  STDERR "Directory \"$prod_dir\" do not exist!\n";
+        Exit_Clean(); 
+      }
+      #Go back current directory
+      chdir ($main::Curdir);
+      
+      &get_all_common_files_in_dir($prod_dir);
+  }
+  
+}
+#Go back current directory
+chdir ($main::Curdir);
+
+#flush all written stuff
+if (!$main::outflag && !$main::comoutflag)
+{
+   close(OUT);
+}
+
+#print STDERR "\nThe following set of latest and unique common files has been found :\n\n";
+
+$Recount=0;
+$NoIdcount=0;
+$Count=0;
+foreach $cmFile (sort keys %finCmFiles)
+{
+  
+  if ( !$filePatch{$cmFile})
+  {          
+     print "$ProdDir{$cmFile} \n";    
+     $Count=$Count+1;
+  }
+  elsif ($filePatch{$cmFile}==1)
+  {
+    $Recount++;
+  }
+  elsif ($filePatch{$cmFile}==2)
+  {
+    $NoIdcount++;
+  }
+}
+
+print STDERR "Total number of latest and unique common files is $Count.\n";
+#print "The list of all common files are stored in the file  $main::CommOut\n"; 
+
+if ($Recount) 
+{
+    print STDERR "\nThere are $Recount files that have the same revision but they are different.\n"; 
+    print STDERR "Please look at the file log history and determine which one is the latest.\n";
+    print STDERR "The following list of  files included below:\n";
+    foreach $cmFile (sort keys %finCmFiles)
+    {
+      if ( $filePatch{$cmFile}==1)
+      {
+	  $Mtime=sprintf("%s",scalar localtime($filemTime{$cmFile}));
+        
+       # if( $fileSidA{$cmFile}>99 )
+       # {
+	#    $SidShow=$fileSidA{$cmFile}/100; 
+        #    if (  ($fileSidA{$cmFile})%100 > 0 )
+        #    {
+        #        $SidSho=sprintf("main/%d_%d",$SidShow,($fileSidA{$cmFile})%100 );
+        #        print STDERR "$ProdDir{$cmFile} $SidSho\n";
+        #    }
+        #    else
+        #    {   
+        #        print STDERR "$ProdDir{$cmFile} main/$SidShow\n";        
+        #    }       
+        #}
+        #else
+        #{
+        #    print STDERR "$ProdDir{$cmFile} $fileSidA{$cmFile}\n";    
+        #}
+	  print STDERR "$ProdDir{$cmFile}\n";
+      }
+    }
+}
+if ($NoIdcount) 
+{
+    print STDERR "\nThere are $NoIdcount file(s) which have no revision found\n";
+    print STDERR "The following list of  files included below:\n";
+    foreach $cmFile (sort keys %finCmFiles)
+    {
+      if ( $filePatch{$cmFile}==2)
+      {
+	  $Mtime=sprintf("%s",scalar localtime($filemTime{$cmFile}));
+          print STDERR "$ProdDir{$cmFile}\n";            
+      }
+    }
+}
+
+if ($Count==0) 
+{
+    exit (0);
+}
+
+print STDERR "Would you like to copy all latest and unique common files to a directory?(y/n)";
+chop($ans = <STDIN>);
+if ($ans eq 'y' || $ans eq 'Y')
+{     
+                
+     print STDERR "Please enter the path of the directory:\n";
+     chop($Path = <STDIN>);
+     
+     
+     $rt=chdir ($Path);
+     unless ($rt)
+     {
+        print STDERR "Directory do not exist, would you like to creat it?(y/n)"; 
+        chop($ans = <STDIN>); 
+        if ($ans ne 'y' && $ans ne 'Y')
+        {
+            exit (0);
+        }
+        $ret=system("mkdir $Path"); 
+        if ($ret)
+        {   
+	   print STDERR "Can not create directory $Path!\n";
+	   exit (1);
+        }     
+     }
+     #Go back current directory
+     chdir ($main::Curdir);
+     print STDERR "Coping unique latest common files to $Path\n";
+     
+     foreach $cmFile (sort keys %finCmFiles)
+     {
+         
+         if (( !$filePatch{$cmFile}) || ($filePatch{$cmFile}==1))
+         {
+           unless (copy("$ProdDir{$cmFile}", "$Path/$cmFile"))
+           {
+               print STDERR "Error copy $ProdDir{$cmFile} to $Path/$cmFile!\n";
+           }
+         } 
+     }
+     
+     print STDERR "Finished!\n";
+}
+
+
+
+
+
+
+
+
+
+
+
+

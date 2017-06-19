@@ -1,0 +1,34 @@
+# Configuration file for LTE-CNE
+
+#####  NOTE: Please Do NOT change the order of the parameters #####
+
+# EGTP related
+AVSM_EG_C_DFLT_PORT                2123                     # EGTP port
+AVSM_EG_C_NONDFLT_PORT             2124                     # EGTP port
+AVSM_EG_U_DFLT_PORT                2152                     # EGTP port
+AVSM_EG_DFLT_HOST_NAME           "kukadi.ccin.ccpu.com"   # EGTP host name
+
+# PDN Gateway (PGW) related
+AVSM_PGW_DFLT_ADDR               "172.27.2.45"     # PGW IP address
+AVSM_PGW_DFLT_EXGW_ADDR          "172.27.2.27"     # External Gateway Address
+AVSM_PGW_UE_START_ADDR           "172.27.2.2"     # Starting address of UE
+AVSM_PGW_UE_NUM                  10              # No. of UEs supported
+AVSM_PGW_IP_NUM                  10              # No. Of IPs supported
+
+# MME,SGW related
+AVSM_SGW_IPADDR                  "172.27.2.44"    # SGW IP address
+AVSM_SGW_PORT                    2152               # SGW port
+
+# Debug mask to be set; each represent 
+#different debug masks to be set (1 and 0 to unset) 
+#in the form |LAV_DBGMASK_INFO|LAV_DBGMASK_ERROR|LAV_DBGMASK_TRC|LAV_DBGMASK_MEM
+
+AVSM_PGW_DBG_MASK                0000
+AVSM_DBG_MASK                    0000
+
+
+
+
+#inactivity timer values
+AVSM_INACTIVE_TMR_VAL                 10000                 # inactive timer value
+AVSM_EXPIRY_CNT                       500                  # expiry count

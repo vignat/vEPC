@@ -1,0 +1,57 @@
+# Configuration file for MME
+
+#####  NOTE: Please Do NOT change the order of the parameters #####
+
+# EGTP related
+VBSM_EG_DFLT_PORT                2123                     # EGTP Default port
+VBSM_EG_NONDFLT_PORT             2124                     # EGTP Non Default port
+VBSM_EG_S10_NONDFLT_PORT         2125                     # EGTP Non Default 
+VBSM_EG_S3_NONDFLT_PORT          2126                     # EGTP Non Default port for S3 interface towards SGSN 
+                                                          # port for S10
+VBSM_EG_DFLT_HOST_NAME           "sutlej.ccin.ccpu.com"   # EGTP host name
+
+
+# E-NodeB related
+VBSM_ENB_ADDR_1                  "192.25.1.180"      # IP address of eNodeB
+VBSM_ENB_PORT_1                  36412              # eNodeB port
+VBSM_ENB_ADDR_2                  "172.26.20.180"      # IP address of eNodeB
+VBSM_ENB_PORT_2                  36412              # eNodeB port
+
+# MME related
+VBSM_MME_IPADDR                  "192.25.1.192"    # MME IP address
+VBSM_MME_SCTP_PORT               36412              # MME SCTP port
+
+VBSM_SGW_IPADDR                  "192.25.1.127"   # SGW IP address
+VBSM_PGW_IPADDR                  "192.25.1.128"    # PDN-GW IP address
+
+VBSM_UE_NUM                      32             # DEC_14_FIX: Changes to support 35 UE's
+VBSM_SCTP_UDP_SERV_TYPE          0              #service type,default 0 SCTP
+
+# Debug mask to be set; each represent 
+#different debug masks to be set (1 and 0 to unset) 
+#in the form |LVB_DBGMASK_INFO|LVB_DBGMASK_ERROR|LVB_DBGMASK_TRC|LVB_DBGMASK_MEM
+
+VBSM_MME_DBG_MASK                1111
+VBSM_DBG_MASK                    1111
+VBSM_NW_INIATED_DETACH_TIMER     1000
+
+VBSM_MCC_DIG1         2
+VBSM_MCC_DIG2         0
+VBSM_MCC_DIG3         8
+
+VBSM_MNC_DIG1         0
+VBSM_MNC_DIG2         1
+VBSM_MNC_DIG3         -1 
+
+# Target PLMN ID format [ MCC + MNC], + is concatination operator
+# If MNC has two digits, the last charater shall be 'f'
+# Valid Configurations: 11223f, 112345.
+VBSM_TARGET_MME_PLMN_ID          31310f 
+VBSM_TARGET_MME_IP_ADDR          "192.25.1.100"
+
+VBSM_T3412                        32
+
+VBSM_SGSN_IP_ADDR                "192.25.1.195"
+
+
+VBSM_SGSN_PLMN_ID        31311f
