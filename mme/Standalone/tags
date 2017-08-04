@@ -19564,7 +19564,7 @@ hiAllocSap	hi_bdy2.c	/^PRIVATE S16 hiAllocSap$/;"	f
 hiAssignConCb	hi_bdy2.c	/^PUBLIC S16 hiAssignConCb$/;"	f
 HiAssocMapCb	hi.x	/^} HiAssocMapCb;$/;"	t	typeref:struct:_HiAssocMapCb
 HiAssocMapEntry	hi.x	/^} HiAssocMapEntry;$/;"	t	typeref:struct:_HiAssocMapEntry
-hiBan1	hi_id.c	/^CONSTANT PUBLIC Txt hiBan1[] ={"(c) Copyright 2017-present Open Networking Laboratory."};$/;"	v
+hiBan1	hi_id.c	/^CONSTANT PUBLIC Txt hiBan1[] ={"(c) Copyright 2017-present Open Networking Foundation
 hiBan2	hi_id.c	/^CONSTANT PUBLIC Txt hiBan2[] ={"                 All rights reserved."};$/;"	v
 hiCb	hi.h	273;"	d
 HiCb	hi.x	/^} HiCb;$/;"	t	typeref:struct:_hiCb
