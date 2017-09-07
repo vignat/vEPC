@@ -13,7 +13,7 @@ LNXCCOPTS=  -g3 -DALIGN_64BIT -DBIT_64 -DSUNOS \
 		-ansi -Wall -Wno-comment -pipe -Wshadow -Wcast-qual \
       -Wno-strict-aliasing -pedantic -Wimplicit -Wunused
 else
-LNXCCOPTS= -g3 -DSUNOS -DSS_LINUX -DANSI -D_GNU_SOURCE \
+LNXCCOPTS= -m32 -g3 -DSUNOS -DSS_LINUX -DANSI -D_GNU_SOURCE \
 	-ansi -Wall -Wno-comment -pipe -Wshadow -Wcast-qual \
    -Wstrict-prototypes -Wmissing-prototypes -pedantic \
    -Wimplicit -Wunused
